@@ -57,7 +57,7 @@ final class SamplerAudioEngine {
             try engine.start()
 
             // Attempt to load a default soundfont and preset
-            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(0), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
+            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(1), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
         } catch {
             print("Audio engine start error: \(error)")
         }
@@ -136,7 +136,7 @@ struct JamView: View {
     let audio: SamplerAudioEngine
 
     private let intervals = Scale.majorIntervals
-    private let baseOctaves = [3, 4, 5] // low, mid, high
+    private let baseOctaves = [5, 4, 3] // high, mid, low
 
     var body: some View {
         VStack(spacing: 16) {
