@@ -39,6 +39,7 @@ struct Scale {
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selectedKey: MusicalKey? = nil
+    @Published var selectedInstrument: UInt8? = nil
 }
 
 // MARK: - Audio Engine (SoundFont Sampler)
@@ -56,8 +57,8 @@ final class SamplerAudioEngine {
 
             try engine.start()
 
-            // Attempt to load a default soundfont and preset
-            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(1), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
+            // Load a default preset (Piano) at startup; can be changed later by InstrumentSelectionView
+            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(0), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
         } catch {
             print("Audio engine start error: \(error)")
         }
@@ -76,6 +77,14 @@ final class SamplerAudioEngine {
         sampler.stopNote(UInt8(clamping: midiNote), onChannel: 0)
     }
 
+    func loadPreset(_ preset: UInt8, bankMSB: UInt8 = UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8 = 0) {
+        do {
+            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: preset, bankMSB: bankMSB, bankLSB: bankLSB)
+        } catch {
+            print("Failed to load preset: \(preset) error: \(error)")
+        }
+    }
+
     private func loadSoundFont(named name: String, withExtension ext: String, preset: UInt8, bankMSB: UInt8, bankLSB: UInt8) throws {
         guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
             throw NSError(domain: "SamplerAudioEngine", code: -1, userInfo: [NSLocalizedDescriptionKey: "SoundFont not found: \(name).\(ext)"])
@@ -92,8 +101,12 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            KeySelectionView()
+            InstrumentSelectionView(audio: audio)
                 .environmentObject(model)
+                .navigationDestination(item: $model.selectedInstrument) { _ in
+                    KeySelectionView()
+                        .environmentObject(model)
+                }
                 .navigationDestination(item: $model.selectedKey) { key in
                     JamView(key: key, audio: audio)
                         .environmentObject(model)
@@ -128,6 +141,43 @@ struct KeySelectionView: View {
             .padding()
         }
         .navigationTitle("Choose a Key")
+    }
+}
+
+struct InstrumentSelectionView: View {
+    @EnvironmentObject var model: AppModel
+    let audio: SamplerAudioEngine
+
+    // For simplicity, expose a list of common GM program numbers (0-15 for demo). Real SF2 may have many more.
+    private let presets: [UInt8] = Array(0...15)
+
+    var body: some View {
+        List(presets, id: \.self) { preset in
+            Button {
+                model.selectedInstrument = preset
+                audio.loadPreset(preset)
+            } label: {
+                HStack {
+                    Text(instrumentName(for: preset))
+                    Spacer()
+                    Text("#\(preset)")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Choose Instrument")
+    }
+
+    private func instrumentName(for preset: UInt8) -> String {
+        // Basic GM names for first 16 presets as placeholders
+        let gm: [String] = [
+            "Acoustic Grand Piano","Bright Acoustic Piano","Electric Grand Piano","Honky-tonk Piano",
+            "Electric Piano 1","Electric Piano 2","Harpsichord","Clavinet",
+            "Celesta","Glockenspiel","Music Box","Vibraphone",
+            "Marimba","Xylophone","Tubular Bells","Dulcimer"
+        ]
+        let idx = Int(preset)
+        return idx < gm.count ? gm[idx] : "Program \(idx)"
     }
 }
 
