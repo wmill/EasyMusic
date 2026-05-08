@@ -1,7 +1,6 @@
 import SwiftUI
 import AVFoundation
 import Combine
-import Accelerate
 
 // MARK: - Musical Model
 
@@ -42,70 +41,23 @@ final class AppModel: ObservableObject {
     @Published var selectedKey: MusicalKey? = nil
 }
 
-// MARK: - Audio Engine (Procedural Tones)
+// MARK: - Audio Engine (SoundFont Sampler)
 
-final class ProceduralAudioEngine {
+final class SamplerAudioEngine {
     private let engine = AVAudioEngine()
-    private var sourceNode: AVAudioSourceNode?
-
-    // Currently active notes (MIDI -> phase increment)
-    private var activeNotes = Set<Int>()
-    private var sampleRate: Double = 44100.0
-    private var phase: Double = 0
-    private var phaseIncrement: Double = 0
-
-    // Simple mix of multiple notes; track frequencies per note
-    private var noteFrequencies: [Int: Double] = [:]
+    private let sampler = AVAudioUnitSampler()
 
     func start() {
         do {
+            engine.attach(sampler)
             let output = engine.outputNode
             let format = output.inputFormat(forBus: 0)
-            sampleRate = format.sampleRate
+            engine.connect(sampler, to: output, format: format)
 
-            let node = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
-                guard let self = self else { return noErr }
-                let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
-
-                // Generate audio per frame
-                let frames = Int(frameCount)
-                if self.activeNotes.isEmpty {
-                    for buffer in abl {
-                        let ptr = buffer.mData!.assumingMemoryBound(to: Float.self)
-                        vDSP_vclr(ptr, 1, vDSP_Length(frames))
-                    }
-                    return noErr
-                }
-
-                // Precompute increments for each active note
-                var increments: [Int: Double] = [:]
-                for (note, freq) in self.noteFrequencies where self.activeNotes.contains(note) {
-                    increments[note] = (2.0 * .pi * freq) / self.sampleRate
-                }
-
-                for buffer in abl {
-                    let ptr = buffer.mData!.assumingMemoryBound(to: Float.self)
-                    for frame in 0..<frames {
-                        var sample: Double = 0
-                        // Sum sines for all active notes (simple polyphony)
-                        for (note, inc) in increments {
-                            // Use a separate phase per note by offsetting with note id
-                            let localPhase = self.phase + Double(note) * 0.12345
-                            sample += sin(localPhase + inc * Double(frame))
-                        }
-                        ptr[frame] = Float(sample / Double(max(1, increments.count)) * 0.2) // prevent clipping
-                    }
-                }
-
-                // Advance global phase to keep continuity
-                self.phase += (2.0 * .pi * 440.0) / self.sampleRate * Double(frames) * 0.0 // no-op, keep phase stable
-                return noErr
-            }
-
-            engine.attach(node)
-            engine.connect(node, to: output, format: format)
             try engine.start()
-            self.sourceNode = node
+
+            // Attempt to load a default soundfont and preset
+            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(0), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
         } catch {
             print("Audio engine start error: \(error)")
         }
@@ -116,19 +68,19 @@ final class ProceduralAudioEngine {
     }
 
     func play(midiNote: Int) {
-        let freq = midiToFrequency(midiNote)
-        noteFrequencies[midiNote] = freq
-        activeNotes.insert(midiNote)
+        let velocity: UInt8 = 100
+        sampler.startNote(UInt8(clamping: midiNote), withVelocity: velocity, onChannel: 0)
     }
 
     func stop(midiNote: Int) {
-        activeNotes.remove(midiNote)
-        noteFrequencies.removeValue(forKey: midiNote)
+        sampler.stopNote(UInt8(clamping: midiNote), onChannel: 0)
     }
 
-    private func midiToFrequency(_ midi: Int) -> Double {
-        // A4 = 440Hz at MIDI 69
-        return 440.0 * pow(2.0, Double(midi - 69) / 12.0)
+    private func loadSoundFont(named name: String, withExtension ext: String, preset: UInt8, bankMSB: UInt8, bankLSB: UInt8) throws {
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
+            throw NSError(domain: "SamplerAudioEngine", code: -1, userInfo: [NSLocalizedDescriptionKey: "SoundFont not found: \(name).\(ext)"])
+        }
+        try sampler.loadSoundBankInstrument(at: url, program: preset, bankMSB: bankMSB, bankLSB: bankLSB)
     }
 }
 
@@ -136,7 +88,7 @@ final class ProceduralAudioEngine {
 
 struct ContentView: View {
     @StateObject private var model = AppModel()
-    private let audio = ProceduralAudioEngine()
+    private let audio = SamplerAudioEngine()
 
     var body: some View {
         NavigationStack {
@@ -181,7 +133,7 @@ struct KeySelectionView: View {
 
 struct JamView: View {
     let key: MusicalKey
-    let audio: ProceduralAudioEngine
+    let audio: SamplerAudioEngine
 
     private let intervals = Scale.majorIntervals
     private let baseOctaves = [3, 4, 5] // low, mid, high
