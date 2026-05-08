@@ -34,6 +34,35 @@ struct Scale {
     static let majorIntervals: [Int] = [0, 2, 4, 5, 7, 9, 11]
 }
 
+struct InstrumentPreset: Codable, Identifiable {
+    let program: UInt8
+    let name: String
+    var id: UInt8 { program }
+}
+
+@MainActor
+final class InstrumentCatalog: ObservableObject {
+    @Published var presets: [InstrumentPreset] = []
+
+    init() {
+        loadFromBundle()
+    }
+
+    private func loadFromBundle() {
+        guard let url = Bundle.main.url(forResource: "instruments", withExtension: "json") else {
+            print("instruments.json not found in bundle")
+            return
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([InstrumentPreset].self, from: data)
+            self.presets = decoded
+        } catch {
+            print("Failed to load instruments.json: \(error)")
+        }
+    }
+}
+
 // MARK: - App State
 
 @MainActor
@@ -146,38 +175,24 @@ struct KeySelectionView: View {
 
 struct InstrumentSelectionView: View {
     @EnvironmentObject var model: AppModel
+    @StateObject private var catalog = InstrumentCatalog()
     let audio: SamplerAudioEngine
 
-    // For simplicity, expose a list of common GM program numbers (0-15 for demo). Real SF2 may have many more.
-    private let presets: [UInt8] = Array(0...15)
-
     var body: some View {
-        List(presets, id: \.self) { preset in
+        List(catalog.presets) { preset in
             Button {
-                model.selectedInstrument = preset
-                audio.loadPreset(preset)
+                model.selectedInstrument = preset.program
+                audio.loadPreset(preset.program)
             } label: {
                 HStack {
-                    Text(instrumentName(for: preset))
+                    Text(preset.name)
                     Spacer()
-                    Text("#\(preset)")
+                    Text("#\(preset.program)")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle("Choose Instrument")
-    }
-
-    private func instrumentName(for preset: UInt8) -> String {
-        // Basic GM names for first 16 presets as placeholders
-        let gm: [String] = [
-            "Acoustic Grand Piano","Bright Acoustic Piano","Electric Grand Piano","Honky-tonk Piano",
-            "Electric Piano 1","Electric Piano 2","Harpsichord","Clavinet",
-            "Celesta","Glockenspiel","Music Box","Vibraphone",
-            "Marimba","Xylophone","Tubular Bells","Dulcimer"
-        ]
-        let idx = Int(preset)
-        return idx < gm.count ? gm[idx] : "Program \(idx)"
     }
 }
 
