@@ -122,6 +122,17 @@ final class SamplerAudioEngine {
     }
 }
 
+// MARK: - Button Styles
+
+struct BounceButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .brightness(configuration.isPressed ? 0.3 : 0)
+            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
 // MARK: - Views
 
 struct ContentView: View {
@@ -159,12 +170,20 @@ struct KeySelectionView: View {
                         model.selectedKey = key
                     } label: {
                         Text(key.rawValue)
-                            .font(.title2)
+                            .font(.title2.bold())
                             .frame(maxWidth: .infinity, minHeight: 72)
                             .foregroundStyle(.white)
-                            .background(Color.blue)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue.opacity(0.85), Color.blue, Color(red: 0.1, green: 0.2, blue: 0.7)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(color: Color.blue.opacity(0.4), radius: 6, x: 0, y: 4)
                     }
+                    .buttonStyle(BounceButtonStyle())
                 }
             }
             .padding()
@@ -251,11 +270,18 @@ struct PressableKey: View {
 
     var body: some View {
         Text(title)
-            .font(.largeTitle)
+            .font(.largeTitle.bold())
             .frame(maxWidth: .infinity, minHeight: 80)
             .foregroundStyle(.white)
-            .background(backgroundColor)
+            .background(backgroundGradient)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+            )
+            .shadow(color: shadowColor.opacity(isPressed ? 0.2 : 0.45), radius: isPressed ? 2 : 8, x: 0, y: isPressed ? 1 : 5)
+            .scaleEffect(isPressed ? 0.93 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
             .contentShape(RoundedRectangle(cornerRadius: 16))
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { _ in
@@ -267,8 +293,29 @@ struct PressableKey: View {
             )
     }
 
-    private var backgroundColor: Color {
-        isPressed ? Color.orange : Color(hue: hueFor(title: title), saturation: 0.6, brightness: 0.9)
+    private var backgroundGradient: LinearGradient {
+        let hue = hueFor(title: title)
+        if isPressed {
+            return LinearGradient(
+                colors: [Color.orange, Color(hue: 0.08, saturation: 0.8, brightness: 0.85)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        return LinearGradient(
+            colors: [
+                Color(hue: hue, saturation: 0.45, brightness: 1.0),
+                Color(hue: hue, saturation: 0.6, brightness: 0.9),
+                Color(hue: hue, saturation: 0.75, brightness: 0.7)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var shadowColor: Color {
+        let hue = hueFor(title: title)
+        return Color(hue: hue, saturation: 0.7, brightness: 0.6)
     }
 
     private func hueFor(title: String) -> Double {
