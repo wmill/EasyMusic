@@ -5,7 +5,7 @@ import Combine
 // MARK: - Musical Model
 
 enum MusicalKey: String, CaseIterable, Identifiable {
-    case C, G, D, A, E, B, FSharp = "F#", CSharp = "C#", F, Bb = "Bb", Eb = "Eb", Ab = "Ab", Db = "Db", Gb = "Gb", Cb = "Cb"
+    case C, G, D, A, E, B, FSharp = "F♯", CSharp = "C♯", F, Bb = "B♭", Eb = "E♭", Ab = "A♭", Db = "D♭", Gb = "G♭", Cb = "C♭"
     var id: String { rawValue }
 
     // Semitone offset from C for enharmonic spelling aimed at simplicity
@@ -254,7 +254,7 @@ struct JamView: View {
     }
 
     private func noteName(for key: MusicalKey, degree: Int, octave: Int) -> String {
-        let names = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+        let names = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"]
         let semitone = (key.semitoneOffsetFromC + intervals[degree]) % 12
         let name = names[semitone]
         return name
@@ -321,7 +321,7 @@ struct PressableKey: View {
     private func hueFor(title: String) -> Double {
         // Deterministic hue per note label
         let map: [String: Double] = [
-            "C": 0.02, "C#": 0.10, "D": 0.18, "D#": 0.26, "E": 0.34, "F": 0.42, "F#": 0.50, "G": 0.58, "G#": 0.66, "A": 0.74, "A#": 0.82, "B": 0.90
+            "C": 0.02, "C♯": 0.10, "D": 0.18, "D♯": 0.26, "E": 0.34, "F": 0.42, "F♯": 0.50, "G": 0.58, "G♯": 0.66, "A": 0.74, "A♯": 0.82, "B": 0.90
         ]
         return map[title] ?? 0.3
     }
