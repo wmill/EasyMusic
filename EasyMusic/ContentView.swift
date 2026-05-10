@@ -34,6 +34,30 @@ struct Scale {
     static let majorIntervals: [Int] = [0, 2, 4, 5, 7, 9, 11]
 }
 
+struct PlayableNote: Identifiable, Hashable {
+    let midiNote: Int
+    let noteName: String
+    let octave: Int
+    let rowIndex: Int
+    let degree: Int
+
+    var id: Int {
+        midiNote
+    }
+
+    var pitchClass: Int {
+        ((midiNote % 12) + 12) % 12
+    }
+
+    var keyboardOffset: Int {
+        (octave - 3) * 12 + pitchClass
+    }
+
+    var isBlackKey: Bool {
+        [1, 3, 6, 8, 10].contains(pitchClass)
+    }
+}
+
 struct InstrumentPreset: Codable, Identifiable {
     let program: UInt8
     let name: String
@@ -221,21 +245,27 @@ struct JamView: View {
 
     private let intervals = Scale.majorIntervals
     private let baseOctaves = [5, 4, 3] // high, mid, low
+    @State private var activeMIDINotes: Set<Int> = []
 
     var body: some View {
         VStack(spacing: 16) {
-            ForEach(0..<3, id: \.self) { row in
+            PianoKeyboardView(
+                notes: keyboardNotes,
+                activeMIDINotes: activeMIDINotes
+            )
+
+            ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
                 HStack(spacing: 12) {
-                    ForEach(0..<7, id: \.self) { degree in
+                    ForEach(rowNotes) { note in
                         PressableKey(
-                            title: noteName(for: key, degree: degree, octave: baseOctaves[row]),
+                            title: note.noteName,
                             down: {
-                                let midi = midiNote(for: key, degree: degree, octave: baseOctaves[row])
-                                audio.play(midiNote: midi)
+                                activeMIDINotes.insert(note.midiNote)
+                                audio.play(midiNote: note.midiNote)
                             },
                             up: {
-                                let midi = midiNote(for: key, degree: degree, octave: baseOctaves[row])
-                                audio.stop(midiNote: midi)
+                                activeMIDINotes.remove(note.midiNote)
+                                audio.stop(midiNote: note.midiNote)
                             }
                         )
                     }
@@ -244,6 +274,38 @@ struct JamView: View {
         }
         .padding()
         .navigationTitle(key.rawValue)
+        .onDisappear {
+            for midiNote in activeMIDINotes {
+                audio.stop(midiNote: midiNote)
+            }
+            activeMIDINotes.removeAll()
+        }
+    }
+
+    private var playableNotes: [PlayableNote] {
+        baseOctaves.enumerated().flatMap { rowIndex, octave in
+            intervals.enumerated().map { degree, _ in
+                let midi = midiNote(for: key, degree: degree, octave: octave)
+                return PlayableNote(
+                    midiNote: midi,
+                    noteName: noteName(for: key, degree: degree, octave: octave),
+                    octave: octave,
+                    rowIndex: rowIndex,
+                    degree: degree
+                )
+            }
+        }
+    }
+
+    private var groupedNotes: [[PlayableNote]] {
+        let notesByRow = Dictionary(grouping: playableNotes, by: \.rowIndex)
+        return notesByRow.keys.sorted().compactMap { rowIndex in
+            notesByRow[rowIndex]?.sorted { $0.degree < $1.degree }
+        }
+    }
+
+    private var keyboardNotes: [PlayableNote] {
+        playableNotes.sorted { $0.midiNote < $1.midiNote }
     }
 
     private func midiNote(for key: MusicalKey, degree: Int, octave: Int) -> Int {
@@ -258,6 +320,113 @@ struct JamView: View {
         let semitone = (key.semitoneOffsetFromC + intervals[degree]) % 12
         let name = names[semitone]
         return name
+    }
+}
+
+private func hueFor(title: String) -> Double {
+    // Deterministic hue per note label
+    let map: [String: Double] = [
+        "C": 0.02, "C♯": 0.10, "D": 0.18, "D♯": 0.26, "E": 0.34, "F": 0.42, "F♯": 0.50, "G": 0.58, "G♯": 0.66, "A": 0.74, "A♯": 0.82, "B": 0.90
+    ]
+    return map[title] ?? 0.3
+}
+
+struct PianoKeyboardView: View {
+    let notes: [PlayableNote]
+    let activeMIDINotes: Set<Int>
+
+    var body: some View {
+        GeometryReader { geometry in
+            let whiteKeyWidth = geometry.size.width / 21
+            let whiteKeyHeight = geometry.size.height
+            let blackKeyWidth = whiteKeyWidth * 0.64
+            let blackKeyHeight = whiteKeyHeight * 0.62
+            let blackKeys = blackKeyPlacements(whiteKeyWidth: whiteKeyWidth, blackKeyWidth: blackKeyWidth)
+
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 0) {
+                    ForEach(whiteKeyNotes) { note in
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(whiteKeyFill(for: note))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(Color.black.opacity(0.16), lineWidth: 1)
+                            )
+                            .frame(width: whiteKeyWidth, height: whiteKeyHeight)
+                    }
+                }
+
+                ForEach(blackKeys, id: \.note.id) { placement in
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(blackKeyFill(for: placement.note))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.8)
+                        )
+                        .frame(width: blackKeyWidth, height: blackKeyHeight)
+                        .offset(x: placement.xOffset, y: 0)
+                }
+            }
+        }
+        .frame(height: 92)
+        .padding(.horizontal, 6)
+        .padding(.top, 2)
+    }
+
+    private var whiteKeyNotes: [PlayableNote] {
+        notes.filter { !$0.isBlackKey }
+    }
+
+    private func blackKeyPlacements(whiteKeyWidth: CGFloat, blackKeyWidth: CGFloat) -> [(note: PlayableNote, xOffset: CGFloat)] {
+        whiteKeyNotes.enumerated().compactMap { index, whiteNote in
+            guard let blackNote = notes.first(where: { $0.keyboardOffset == whiteNote.keyboardOffset + 1 && $0.isBlackKey }) else {
+                return nil
+            }
+            let xOffset = (CGFloat(index + 1) * whiteKeyWidth) - (blackKeyWidth / 2)
+            return (note: blackNote, xOffset: xOffset)
+        }
+    }
+
+    private func whiteKeyFill(for note: PlayableNote) -> LinearGradient {
+        if activeMIDINotes.contains(note.midiNote) {
+            let hue = hueFor(title: note.noteName)
+            return LinearGradient(
+                colors: [
+                    Color(hue: hue, saturation: 0.30, brightness: 1.0),
+                    Color(hue: hue, saturation: 0.55, brightness: 0.96),
+                    Color(hue: hue, saturation: 0.80, brightness: 0.88)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+
+        return LinearGradient(
+            colors: [Color.white, Color(white: 0.95), Color(white: 0.88)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private func blackKeyFill(for note: PlayableNote) -> LinearGradient {
+        if activeMIDINotes.contains(note.midiNote) {
+            let hue = hueFor(title: note.noteName)
+            return LinearGradient(
+                colors: [
+                    Color(hue: hue, saturation: 0.60, brightness: 0.98),
+                    Color(hue: hue, saturation: 0.78, brightness: 0.88),
+                    Color(hue: hue, saturation: 0.88, brightness: 0.66)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+
+        return LinearGradient(
+            colors: [Color(white: 0.25), Color(white: 0.12), Color.black],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 }
 
@@ -318,13 +487,6 @@ struct PressableKey: View {
         return Color(hue: hue, saturation: 0.7, brightness: 0.6)
     }
 
-    private func hueFor(title: String) -> Double {
-        // Deterministic hue per note label
-        let map: [String: Double] = [
-            "C": 0.02, "C♯": 0.10, "D": 0.18, "D♯": 0.26, "E": 0.34, "F": 0.42, "F♯": 0.50, "G": 0.58, "G♯": 0.66, "A": 0.74, "A♯": 0.82, "B": 0.90
-        ]
-        return map[title] ?? 0.3
-    }
 }
 
 #Preview {
