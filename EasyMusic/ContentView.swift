@@ -262,39 +262,66 @@ struct JamView: View {
     private let intervals = Scale.majorIntervals
     private let baseOctaves = [5, 4, 3] // high, mid, low
     @State private var activeMIDINotes: Set<Int> = []
+    @State private var isShowingSettings = false
+    @AppStorage("showPianoKeyboard") private var showPianoKeyboard = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            PianoKeyboardView(
-                keys: pianoKeys,
-                activeMIDINotes: activeMIDINotes
-            )
-            .padding(.horizontal, 18)
-            .padding(.top, 4)
-            .padding(.bottom, 30)
+        ZStack(alignment: .bottomLeading) {
+            VStack(spacing: 0) {
+                if showPianoKeyboard {
+                    PianoKeyboardView(
+                        keys: pianoKeys,
+                        activeMIDINotes: activeMIDINotes
+                    )
+                    .padding(.horizontal, 18)
+                    .padding(.top, 4)
+                    .padding(.bottom, 30)
+                }
 
-            VStack(spacing: 16) {
-                ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
-                    HStack(spacing: 16) {
-                        ForEach(rowNotes) { note in
-                            PressableKey(
-                                title: note.noteName,
-                                down: {
-                                    activeMIDINotes.insert(note.midiNote)
-                                    audio.play(midiNote: note.midiNote)
-                                },
-                                up: {
-                                    activeMIDINotes.remove(note.midiNote)
-                                    audio.stop(midiNote: note.midiNote)
-                                }
-                            )
+                VStack(spacing: 16) {
+                    ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
+                        HStack(spacing: 16) {
+                            ForEach(rowNotes) { note in
+                                PressableKey(
+                                    title: note.noteName,
+                                    down: {
+                                        activeMIDINotes.insert(note.midiNote)
+                                        audio.play(midiNote: note.midiNote)
+                                    },
+                                    up: {
+                                        activeMIDINotes.remove(note.midiNote)
+                                        audio.stop(midiNote: note.midiNote)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
+                .frame(maxHeight: .infinity, alignment: .center)
             }
+            .padding()
+
+            Button {
+                isShowingSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 50, height: 50)
+                    .background(.black.opacity(0.28))
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                    )
+            }
+            .padding(.leading, 16)
+            .padding(.bottom, 16)
         }
-        .padding()
         .navigationTitle(key.rawValue)
+        .sheet(isPresented: $isShowingSettings) {
+            JamSettingsView(showPianoKeyboard: $showPianoKeyboard)
+        }
         .onDisappear {
             for midiNote in activeMIDINotes {
                 audio.stop(midiNote: midiNote)
@@ -470,6 +497,28 @@ struct PianoKeyboardView: View {
         let names = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"]
         let pitchClass = ((midiNote % 12) + 12) % 12
         return names[pitchClass]
+    }
+}
+
+struct JamSettingsView: View {
+    @Binding var showPianoKeyboard: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Toggle("Show piano keyboard", isOn: $showPianoKeyboard)
+            }
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 
