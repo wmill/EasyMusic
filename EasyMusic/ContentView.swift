@@ -264,26 +264,31 @@ struct JamView: View {
     @State private var activeMIDINotes: Set<Int> = []
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             PianoKeyboardView(
                 keys: pianoKeys,
                 activeMIDINotes: activeMIDINotes
             )
+            .padding(.horizontal, 18)
+            .padding(.top, 4)
+            .padding(.bottom, 30)
 
-            ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
-                HStack(spacing: 16) {
-                    ForEach(rowNotes) { note in
-                        PressableKey(
-                            title: note.noteName,
-                            down: {
-                                activeMIDINotes.insert(note.midiNote)
-                                audio.play(midiNote: note.midiNote)
-                            },
-                            up: {
-                                activeMIDINotes.remove(note.midiNote)
-                                audio.stop(midiNote: note.midiNote)
-                            }
-                        )
+            VStack(spacing: 16) {
+                ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
+                    HStack(spacing: 16) {
+                        ForEach(rowNotes) { note in
+                            PressableKey(
+                                title: note.noteName,
+                                down: {
+                                    activeMIDINotes.insert(note.midiNote)
+                                    audio.play(midiNote: note.midiNote)
+                                },
+                                up: {
+                                    activeMIDINotes.remove(note.midiNote)
+                                    audio.stop(midiNote: note.midiNote)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -396,7 +401,7 @@ struct PianoKeyboardView: View {
         }
         .frame(height: 92)
         .padding(.horizontal, 6)
-        .padding(.top, 2)
+        .opacity(0.9)
     }
 
     private var whiteKeys: [PianoKey] {
