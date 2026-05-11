@@ -5,23 +5,23 @@
   },
   {
     "program": 1,
-    "name": "Bright Grand"
+    "name": "Bright Grand Piano"
   },
   {
     "program": 2,
-    "name": "Piano 3"
+    "name": "Electric Grand Piano"
   },
   {
     "program": 3,
-    "name": "Honky-Tonk"
+    "name": "Honky-Tonk Piano"
   },
   {
     "program": 4,
-    "name": "E.Piano 1"
+    "name": "Tine Electric Piano"
   },
   {
     "program": 5,
-    "name": "E.Piano2"
+    "name": "FM Electric Piano"
   },
   {
     "program": 6,
@@ -29,11 +29,11 @@
   },
   {
     "program": 7,
-    "name": "Clav."
+    "name": "Clavinet"
   },
   {
     "program": 8,
-    "name": "Celesta"
+    "name": "Celeste"
   },
   {
     "program": 9,
@@ -65,15 +65,15 @@
   },
   {
     "program": 16,
-    "name": "Organ 1"
+    "name": "Tonewheel Organ"
   },
   {
     "program": 17,
-    "name": "Organ 2"
+    "name": "Percussive Organ"
   },
   {
     "program": 18,
-    "name": "Organ 3"
+    "name": "Rock Organ"
   },
   {
     "program": 19,
@@ -125,7 +125,7 @@
   },
   {
     "program": 31,
-    "name": "Gt.Harmonics"
+    "name": "Guitar Harmonics"
   },
   {
     "program": 32,
@@ -133,11 +133,11 @@
   },
   {
     "program": 33,
-    "name": "Fingered Bass"
+    "name": "Finger Bass"
   },
   {
     "program": 34,
-    "name": "Picked Bass"
+    "name": "Pick Bass"
   },
   {
     "program": 35,
@@ -173,7 +173,7 @@
   },
   {
     "program": 43,
-    "name": "Contrabass"
+    "name": "Double Bass"
   },
   {
     "program": 44,
@@ -185,7 +185,7 @@
   },
   {
     "program": 46,
-    "name": "Harp"
+    "name": "Orchestral Harp"
   },
   {
     "program": 47,
@@ -193,7 +193,7 @@
   },
   {
     "program": 48,
-    "name": "Strings"
+    "name": "Fast Strings"
   },
   {
     "program": 49,
@@ -209,7 +209,7 @@
   },
   {
     "program": 52,
-    "name": "Choir Aahs"
+    "name": "Concert Choir"
   },
   {
     "program": 53,
@@ -217,11 +217,11 @@
   },
   {
     "program": 54,
-    "name": "Synth Vox"
+    "name": "Synth Voice"
   },
   {
     "program": 55,
-    "name": "OrchestraHit"
+    "name": "Orchestra Hit"
   },
   {
     "program": 56,
@@ -237,7 +237,7 @@
   },
   {
     "program": 59,
-    "name": "MutedTrumpet"
+    "name": "Muted Trumpet"
   },
   {
     "program": 60,
@@ -245,7 +245,7 @@
   },
   {
     "program": 61,
-    "name": "Brass 1"
+    "name": "Brass Section"
   },
   {
     "program": 62,
@@ -321,11 +321,11 @@
   },
   {
     "program": 80,
-    "name": "Square Wave"
+    "name": "Square Lead"
   },
   {
     "program": 81,
-    "name": "Saw Wave"
+    "name": "Saw Lead"
   },
   {
     "program": 82,
@@ -437,7 +437,7 @@
   },
   {
     "program": 109,
-    "name": "Bagpipe"
+    "name": "Bagpipes"
   },
   {
     "program": 110,
@@ -449,7 +449,7 @@
   },
   {
     "program": 112,
-    "name": "Tinkle Bell"
+    "name": "Tinker Bell"
   },
   {
     "program": 113,
@@ -461,11 +461,11 @@
   },
   {
     "program": 115,
-    "name": "Woodblock"
+    "name": "Wood Block"
   },
   {
     "program": 116,
-    "name": "Taiko"
+    "name": "Taiko Drum"
   },
   {
     "program": 117,
@@ -477,11 +477,11 @@
   },
   {
     "program": 119,
-    "name": "Reverse Cym."
+    "name": "Reverse Cymbal"
   },
   {
     "program": 120,
-    "name": "Gt.FretNoise"
+    "name": "Fret Noise"
   },
   {
     "program": 121,
@@ -493,11 +493,11 @@
   },
   {
     "program": 123,
-    "name": "Bird"
+    "name": "Birds"
   },
   {
     "program": 124,
-    "name": "Telephone"
+    "name": "Telephone 1"
   },
   {
     "program": 125,

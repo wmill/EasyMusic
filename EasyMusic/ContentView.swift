@@ -127,7 +127,7 @@ final class SamplerAudioEngine {
             try engine.start()
 
             // Load a default preset (Piano) at startup; can be changed later by InstrumentSelectionView
-            try loadSoundFont(named: "SGM-v2.01-NicePianosGuitarsBass-V1.2", withExtension: "sf2", preset: UInt8(0), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
+            try loadSoundFont(named: "GeneralUser-GS", withExtension: "sf2", preset: UInt8(0), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(0))
         } catch {
             print("Audio engine start error: \(error)")
         }
