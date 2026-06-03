@@ -261,62 +261,97 @@ struct JamView: View {
 
     private let intervals = Scale.majorIntervals
     private let baseOctaves = [5, 4, 3] // high, mid, low
+    private let minimumJamWidthRatio = 0.5
     @State private var activeMIDINotes: Set<Int> = []
     @State private var isShowingSettings = false
+    @State private var isResizingJamWidth = false
+    @State private var resizeStartPadding: Double?
     @AppStorage("showPianoKeyboard") private var showPianoKeyboard = false
+    @AppStorage("jamHorizontalPadding") private var jamHorizontalPadding = 16.0
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            VStack(spacing: 0) {
-                if showPianoKeyboard {
-                    PianoKeyboardView(
-                        keys: pianoKeys,
-                        activeMIDINotes: activeMIDINotes
-                    )
-                    .padding(.horizontal, 18)
-                    .padding(.top, 4)
-                    .padding(.bottom, 30)
-                }
+        GeometryReader { geometry in
+            let horizontalPadding = clampedJamHorizontalPadding(for: geometry.size.width)
 
-                VStack(spacing: 16) {
-                    ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
-                        HStack(spacing: 16) {
-                            ForEach(rowNotes) { note in
-                                PressableKey(
-                                    title: note.noteName,
-                                    down: {
-                                        activeMIDINotes.insert(note.midiNote)
-                                        audio.play(midiNote: note.midiNote)
-                                    },
-                                    up: {
-                                        activeMIDINotes.remove(note.midiNote)
-                                        audio.stop(midiNote: note.midiNote)
-                                    }
-                                )
+            ZStack(alignment: .bottomLeading) {
+                VStack(spacing: 0) {
+                    if showPianoKeyboard {
+                        PianoKeyboardView(
+                            keys: pianoKeys,
+                            activeMIDINotes: activeMIDINotes
+                        )
+                        .padding(.horizontal, 18)
+                        .padding(.top, 4)
+                        .padding(.bottom, 30)
+                    }
+
+                    VStack(spacing: 16) {
+                        ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
+                            HStack(spacing: 16) {
+                                ForEach(rowNotes) { note in
+                                    PressableKey(
+                                        title: note.noteName,
+                                        down: {
+                                            activeMIDINotes.insert(note.midiNote)
+                                            audio.play(midiNote: note.midiNote)
+                                        },
+                                        up: {
+                                            activeMIDINotes.remove(note.midiNote)
+                                            audio.stop(midiNote: note.midiNote)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
+                    .frame(maxHeight: .infinity, alignment: .center)
                 }
-                .frame(maxHeight: .infinity, alignment: .center)
-            }
-            .padding()
+                .padding(.vertical, 16)
+                .padding(.horizontal, horizontalPadding)
+                .animation(.easeInOut(duration: 0.18), value: horizontalPadding)
 
-            Button {
-                isShowingSettings = true
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 50, height: 50)
-                    .background(.black.opacity(0.28))
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .strokeBorder(.white.opacity(0.22), lineWidth: 1)
-                    )
+                if isResizingJamWidth {
+                    JamResizeHandle(edge: .leading)
+                        .padding(.leading, max(horizontalPadding - 8, 0))
+                        .gesture(resizeGesture(edge: .leading, availableWidth: geometry.size.width))
+
+                    JamResizeHandle(edge: .trailing)
+                        .padding(.trailing, max(horizontalPadding - 8, 0))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
+                }
+
+                JamResizeLockButton(isUnlocked: isResizingJamWidth) {
+                    isResizingJamWidth.toggle()
+                    clampStoredJamHorizontalPadding(for: geometry.size.width)
+                }
+                .padding(.top, 12)
+                .padding(.trailing, max(horizontalPadding, 16))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 50, height: 50)
+                        .background(.black.opacity(0.28))
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                        )
+                }
+                .padding(.leading, 16)
+                .padding(.bottom, 16)
             }
-            .padding(.leading, 16)
-            .padding(.bottom, 16)
+            .onAppear {
+                clampStoredJamHorizontalPadding(for: geometry.size.width)
+            }
+            .onChange(of: geometry.size.width) { _, newWidth in
+                clampStoredJamHorizontalPadding(for: newWidth)
+            }
         }
         .navigationTitle(key.rawValue)
         .sheet(isPresented: $isShowingSettings) {
@@ -328,6 +363,40 @@ struct JamView: View {
             }
             activeMIDINotes.removeAll()
         }
+    }
+
+    private func clampedJamHorizontalPadding(for availableWidth: CGFloat) -> CGFloat {
+        CGFloat(min(max(jamHorizontalPadding, 0), maxJamHorizontalPadding(for: availableWidth)))
+    }
+
+    private func clampStoredJamHorizontalPadding(for availableWidth: CGFloat) {
+        jamHorizontalPadding = min(max(jamHorizontalPadding, 0), maxJamHorizontalPadding(for: availableWidth))
+    }
+
+    private func maxJamHorizontalPadding(for availableWidth: CGFloat) -> Double {
+        max(0, Double(availableWidth) * (1 - minimumJamWidthRatio) / 2)
+    }
+
+    private func resizeGesture(edge: JamResizeEdge, availableWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let startingPadding = resizeStartPadding ?? jamHorizontalPadding
+                resizeStartPadding = startingPadding
+
+                let proposedPadding: Double
+                switch edge {
+                case .leading:
+                    proposedPadding = startingPadding + Double(value.translation.width)
+                case .trailing:
+                    proposedPadding = startingPadding - Double(value.translation.width)
+                }
+
+                jamHorizontalPadding = min(max(proposedPadding, 0), maxJamHorizontalPadding(for: availableWidth))
+            }
+            .onEnded { _ in
+                resizeStartPadding = nil
+                clampStoredJamHorizontalPadding(for: availableWidth)
+            }
     }
 
     private var playableNotes: [PlayableNote] {
@@ -373,6 +442,52 @@ struct JamView: View {
         let semitone = (key.semitoneOffsetFromC + intervals[degree]) % 12
         let name = names[semitone]
         return name
+    }
+}
+
+enum JamResizeEdge {
+    case leading
+    case trailing
+}
+
+struct JamResizeLockButton: View {
+    let isUnlocked: Bool
+    let onLongPress: () -> Void
+
+    var body: some View {
+        Image(systemName: isUnlocked ? "lock.open.fill" : "lock.fill")
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(width: 46, height: 46)
+            .background(isUnlocked ? Color.green.opacity(0.78) : Color.black.opacity(0.28))
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+            )
+            .contentShape(Circle())
+            .onLongPressGesture(minimumDuration: 0.45, perform: onLongPress)
+            .accessibilityLabel(isUnlocked ? "Lock jam width" : "Unlock jam width")
+            .accessibilityHint("Press and hold to toggle width resizing")
+    }
+}
+
+struct JamResizeHandle: View {
+    let edge: JamResizeEdge
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(Color.accentColor.opacity(0.72))
+            .frame(width: 10, height: 220)
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(.white.opacity(0.35), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .frame(width: 44)
+            .contentShape(Rectangle())
+            .accessibilityLabel(edge == .leading ? "Left jam width handle" : "Right jam width handle")
     }
 }
 
