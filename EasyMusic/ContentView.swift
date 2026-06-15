@@ -305,9 +305,10 @@ struct JamView: View {
                         }
                     }
                     .frame(maxHeight: .infinity, alignment: .center)
+                    .padding(.horizontal, horizontalPadding)
+
                 }
                 .padding(.vertical, 16)
-                .padding(.horizontal, horizontalPadding)
                 .animation(.easeInOut(duration: 0.18), value: horizontalPadding)
 
                 if isResizingJamWidth {
