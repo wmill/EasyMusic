@@ -265,6 +265,7 @@ struct JamView: View {
     @State private var activeMIDINotes: Set<Int> = []
     @State private var isShowingSettings = false
     @State private var isResizingJamWidth = false
+    @State private var isDraggingJamWidth = false
     @State private var resizeStartPadding: Double?
     @AppStorage("showPianoKeyboard") private var showPianoKeyboard = false
     @AppStorage("jamHorizontalPadding") private var jamHorizontalPadding = 16.0
@@ -285,21 +286,27 @@ struct JamView: View {
                         .padding(.bottom, 30)
                     }
 
-                    VStack(spacing: 16) {
-                        ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
-                            HStack(spacing: 16) {
-                                ForEach(rowNotes) { note in
-                                    PressableKey(
-                                        title: note.noteName,
-                                        down: {
-                                            activeMIDINotes.insert(note.midiNote)
-                                            audio.play(midiNote: note.midiNote)
-                                        },
-                                        up: {
-                                            activeMIDINotes.remove(note.midiNote)
-                                            audio.stop(midiNote: note.midiNote)
+                    Group {
+                        if isDraggingJamWidth {
+                            JamKeyPlaceholderGrid(rowColumnCounts: rowColumnCounts)
+                        } else {
+                            VStack(spacing: 16) {
+                                ForEach(groupedNotes, id: \.first?.rowIndex) { rowNotes in
+                                    HStack(spacing: 16) {
+                                        ForEach(rowNotes) { note in
+                                            PressableKey(
+                                                title: note.noteName,
+                                                down: {
+                                                    activeMIDINotes.insert(note.midiNote)
+                                                    audio.play(midiNote: note.midiNote)
+                                                },
+                                                up: {
+                                                    activeMIDINotes.remove(note.midiNote)
+                                                    audio.stop(midiNote: note.midiNote)
+                                                }
+                                            )
                                         }
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -309,7 +316,7 @@ struct JamView: View {
 
                 }
                 .padding(.vertical, 16)
-                .animation(.easeInOut(duration: 0.18), value: horizontalPadding)
+                .animation(isDraggingJamWidth ? nil : .easeInOut(duration: 0.18), value: horizontalPadding)
 
                 if isResizingJamWidth {
                     JamResizeHandle(edge: .leading)
@@ -381,6 +388,7 @@ struct JamView: View {
     private func resizeGesture(edge: JamResizeEdge, availableWidth: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
+                isDraggingJamWidth = true
                 let startingPadding = resizeStartPadding ?? jamHorizontalPadding
                 resizeStartPadding = startingPadding
 
@@ -395,6 +403,7 @@ struct JamView: View {
                 jamHorizontalPadding = min(max(proposedPadding, 0), maxJamHorizontalPadding(for: availableWidth))
             }
             .onEnded { _ in
+                isDraggingJamWidth = false
                 resizeStartPadding = nil
                 clampStoredJamHorizontalPadding(for: availableWidth)
             }
@@ -420,6 +429,10 @@ struct JamView: View {
         return notesByRow.keys.sorted().compactMap { rowIndex in
             notesByRow[rowIndex]?.sorted { $0.degree < $1.degree }
         }
+    }
+
+    private var rowColumnCounts: [Int] {
+        groupedNotes.map(\.count)
     }
 
     private var pianoKeys: [PianoKey] {
@@ -449,6 +462,30 @@ struct JamView: View {
 enum JamResizeEdge {
     case leading
     case trailing
+}
+
+struct JamKeyPlaceholderGrid: View {
+    let rowColumnCounts: [Int]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ForEach(Array(rowColumnCounts.enumerated()), id: \.offset) { _, columnCount in
+                HStack(spacing: 16) {
+                    ForEach(0..<columnCount, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.white.opacity(0.16))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 80)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
 }
 
 struct JamResizeLockButton: View {
