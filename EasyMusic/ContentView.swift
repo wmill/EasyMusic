@@ -312,22 +312,25 @@ struct JamView: View {
                         }
                     }
                     .frame(maxHeight: .infinity, alignment: .center)
+                    .overlay(alignment: .leading) {
+                        if isResizingJamWidth {
+                            JamResizeHandle(edge: .leading, height: jamGridHeight)
+                                .offset(x: -min(horizontalPadding, 22))
+                                .gesture(resizeGesture(edge: .leading, availableWidth: geometry.size.width))
+                        }
+                    }
+                    .overlay(alignment: .trailing) {
+                        if isResizingJamWidth {
+                            JamResizeHandle(edge: .trailing, height: jamGridHeight)
+                                .offset(x: min(horizontalPadding, 22))
+                                .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
+                        }
+                    }
                     .padding(.horizontal, horizontalPadding)
 
                 }
                 .padding(.vertical, 16)
                 .animation(isDraggingJamWidth ? nil : .easeInOut(duration: 0.18), value: horizontalPadding)
-
-                if isResizingJamWidth {
-                    JamResizeHandle(edge: .leading)
-                        .padding(.leading, max(horizontalPadding - 8, 0))
-                        .gesture(resizeGesture(edge: .leading, availableWidth: geometry.size.width))
-
-                    JamResizeHandle(edge: .trailing)
-                        .padding(.trailing, max(horizontalPadding - 8, 0))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
-                }
 
                 JamResizeButton(isUnlocked: isResizingJamWidth) {
                     isResizingJamWidth.toggle()
@@ -435,6 +438,12 @@ struct JamView: View {
         groupedNotes.map(\.count)
     }
 
+    // Height of the colored key grid: rows * key height + inter-row spacing.
+    private var jamGridHeight: CGFloat {
+        let rowCount = CGFloat(rowColumnCounts.count)
+        return rowCount * jamKeyMinHeight + max(rowCount - 1, 0) * 16
+    }
+
     private var pianoKeys: [PianoKey] {
         let sortedNotes = playableNotes.sorted { $0.midiNote < $1.midiNote }
         guard let firstNote = sortedNotes.first?.midiNote, let lastNote = sortedNotes.last?.midiNote else {
@@ -514,17 +523,17 @@ struct JamResizeButton: View {
 
 struct JamResizeHandle: View {
     let edge: JamResizeEdge
+    var height: CGFloat
 
     var body: some View {
         RoundedRectangle(cornerRadius: 5, style: .continuous)
             .fill(Color.accentColor.opacity(0.72))
-            .frame(width: 10, height: 220)
+            .frame(width: 10, height: height)
             .overlay(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(.white.opacity(0.35), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
-            .frame(maxHeight: .infinity, alignment: .center)
             .frame(width: 44)
             .contentShape(Rectangle())
             .accessibilityLabel(edge == .leading ? "Left jam width handle" : "Right jam width handle")
