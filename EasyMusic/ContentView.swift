@@ -329,13 +329,13 @@ struct JamView: View {
                         .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
                 }
 
-                JamResizeLockButton(isUnlocked: isResizingJamWidth) {
+                JamResizeButton(isUnlocked: isResizingJamWidth) {
                     isResizingJamWidth.toggle()
                     clampStoredJamHorizontalPadding(for: geometry.size.width)
                 }
-                .padding(.top, 12)
-                .padding(.trailing, max(horizontalPadding, 16))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.trailing, 16)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
 
                 Button {
                     isShowingSettings = true
@@ -464,6 +464,8 @@ enum JamResizeEdge {
     case trailing
 }
 
+let jamKeyMinHeight: CGFloat = 80
+
 struct JamKeyPlaceholderGrid: View {
     let rowColumnCounts: [Int]
 
@@ -472,13 +474,13 @@ struct JamKeyPlaceholderGrid: View {
             ForEach(Array(rowColumnCounts.enumerated()), id: \.offset) { _, columnCount in
                 HStack(spacing: 16) {
                     ForEach(0..<columnCount, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 16)
                             .fill(Color.white.opacity(0.16))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
                             )
-                            .frame(maxWidth: .infinity, minHeight: 80)
+                            .frame(maxWidth: .infinity, minHeight: jamKeyMinHeight, maxHeight: jamKeyMinHeight)
                     }
                 }
             }
@@ -488,25 +490,25 @@ struct JamKeyPlaceholderGrid: View {
     }
 }
 
-struct JamResizeLockButton: View {
+struct JamResizeButton: View {
     let isUnlocked: Bool
-    let onLongPress: () -> Void
+    let onToggle: () -> Void
 
     var body: some View {
-        Image(systemName: isUnlocked ? "lock.open.fill" : "lock.fill")
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(.white)
-            .frame(width: 46, height: 46)
-            .background(isUnlocked ? Color.green.opacity(0.78) : Color.black.opacity(0.28))
-            .clipShape(Circle())
-            .overlay(
-                Circle()
-                    .strokeBorder(.white.opacity(0.22), lineWidth: 1)
-            )
-            .contentShape(Circle())
-            .onLongPressGesture(minimumDuration: 0.45, perform: onLongPress)
-            .accessibilityLabel(isUnlocked ? "Lock jam width" : "Unlock jam width")
-            .accessibilityHint("Press and hold to toggle width resizing")
+        Button(action: onToggle) {
+            Image(systemName: "arrow.left.and.right.square.fill")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 50, height: 50)
+                .background(isUnlocked ? Color.green.opacity(0.78) : Color.black.opacity(0.28))
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                )
+        }
+        .accessibilityLabel("Resize jam width")
+        .accessibilityHint("Tap to toggle width resizing")
     }
 }
 
@@ -685,7 +687,7 @@ struct PressableKey: View {
     var body: some View {
         Text(title)
             .font(.largeTitle.bold())
-            .frame(maxWidth: .infinity, minHeight: 80)
+            .frame(maxWidth: .infinity, minHeight: jamKeyMinHeight)
             .foregroundStyle(.white)
             .background(backgroundGradient)
             .clipShape(RoundedRectangle(cornerRadius: 16))
