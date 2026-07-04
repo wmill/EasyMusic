@@ -315,14 +315,14 @@ struct JamView: View {
                     .overlay(alignment: .leading) {
                         if isResizingJamWidth {
                             JamResizeHandle(edge: .leading, height: jamGridHeight)
-                                .offset(x: -min(horizontalPadding, 22))
+//                                .offset(x: -min(horizontalPadding, 22))
                                 .gesture(resizeGesture(edge: .leading, availableWidth: geometry.size.width))
                         }
                     }
                     .overlay(alignment: .trailing) {
                         if isResizingJamWidth {
                             JamResizeHandle(edge: .trailing, height: jamGridHeight)
-                                .offset(x: min(horizontalPadding, 22))
+//                                .offset(x: min(horizontalPadding, 22))
                                 .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
                         }
                     }
@@ -528,7 +528,7 @@ struct JamResizeHandle: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 5, style: .continuous)
             .fill(Color.accentColor.opacity(0.72))
-            .frame(width: 10, height: height)
+            .frame(width: 20, height: height)
             .overlay(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(.white.opacity(0.35), lineWidth: 1)
