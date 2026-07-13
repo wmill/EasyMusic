@@ -265,14 +265,16 @@ struct JamView: View {
     @State private var activeMIDINotes: Set<Int> = []
     @State private var isShowingSettings = false
     @State private var isResizingJamWidth = false
-    @State private var isDraggingJamWidth = false
     @State private var resizeStartPadding: Double?
+    // Non-nil while a resize drag is in flight; the stored @AppStorage value is
+    // only written once, on drag end, to avoid a UserDefaults write per frame.
+    @State private var draggingPadding: Double?
     @AppStorage("showPianoKeyboard") private var showPianoKeyboard = false
     @AppStorage("jamHorizontalPadding") private var jamHorizontalPadding = 16.0
 
     var body: some View {
         GeometryReader { geometry in
-            let horizontalPadding = clampedJamHorizontalPadding(for: geometry.size.width)
+            let horizontalPadding = draggingPadding.map { CGFloat($0) } ?? clampedJamHorizontalPadding(for: geometry.size.width)
 
             ZStack(alignment: .bottomLeading) {
                 VStack(spacing: 0) {
@@ -286,7 +288,9 @@ struct JamView: View {
                         .padding(.bottom, 30)
                     }
 
-                    Group {
+                    // ZStack (not Group) so the handle overlays hang off a container whose
+                    // identity survives the real-grid/placeholder swap mid-drag.
+                    ZStack {
                         if isDraggingJamWidth {
                             JamKeyPlaceholderGrid(rowColumnCounts: rowColumnCounts)
                         } else {
@@ -315,14 +319,14 @@ struct JamView: View {
                     .overlay(alignment: .leading) {
                         if isResizingJamWidth {
                             JamResizeHandle(edge: .leading, height: jamGridHeight)
-//                                .offset(x: -min(horizontalPadding, 22))
+                                .offset(x: -min(horizontalPadding, 22))
                                 .gesture(resizeGesture(edge: .leading, availableWidth: geometry.size.width))
                         }
                     }
                     .overlay(alignment: .trailing) {
                         if isResizingJamWidth {
                             JamResizeHandle(edge: .trailing, height: jamGridHeight)
-//                                .offset(x: min(horizontalPadding, 22))
+                                .offset(x: min(horizontalPadding, 22))
                                 .gesture(resizeGesture(edge: .trailing, availableWidth: geometry.size.width))
                         }
                     }
@@ -388,10 +392,15 @@ struct JamView: View {
         max(0, Double(availableWidth) * (1 - minimumJamWidthRatio) / 2)
     }
 
+    private var isDraggingJamWidth: Bool {
+        draggingPadding != nil
+    }
+
     private func resizeGesture(edge: JamResizeEdge, availableWidth: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        // Global coordinate space: the handle itself moves as the padding changes,
+        // so a local-space translation would feed back into itself and oscillate.
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { value in
-                isDraggingJamWidth = true
                 let startingPadding = resizeStartPadding ?? jamHorizontalPadding
                 resizeStartPadding = startingPadding
 
@@ -403,10 +412,13 @@ struct JamView: View {
                     proposedPadding = startingPadding - Double(value.translation.width)
                 }
 
-                jamHorizontalPadding = min(max(proposedPadding, 0), maxJamHorizontalPadding(for: availableWidth))
+                draggingPadding = min(max(proposedPadding, 0), maxJamHorizontalPadding(for: availableWidth))
             }
             .onEnded { _ in
-                isDraggingJamWidth = false
+                if let draggingPadding {
+                    jamHorizontalPadding = draggingPadding
+                }
+                draggingPadding = nil
                 resizeStartPadding = nil
                 clampStoredJamHorizontalPadding(for: availableWidth)
             }
@@ -484,10 +496,10 @@ struct JamKeyPlaceholderGrid: View {
                 HStack(spacing: 16) {
                     ForEach(0..<columnCount, id: \.self) { _ in
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.16))
+                            .fill(Color.primary.opacity(0.12))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+                                    .strokeBorder(Color.primary.opacity(0.28), lineWidth: 1)
                             )
                             .frame(maxWidth: .infinity, minHeight: jamKeyMinHeight, maxHeight: jamKeyMinHeight)
                     }

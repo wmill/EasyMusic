@@ -56,9 +56,14 @@ Key pieces in `ContentView.swift`:
 - While unlocked, two **`JamResizeHandle`** bars are overlaid on the key grid (leading/trailing) and dragged
   via `resizeGesture(edge:availableWidth:)`. Handles are sized to `jamGridHeight` and overlaid on the grid
   container so they stay vertically aligned with the keys regardless of the piano keyboard's presence.
-- While dragging (`isDraggingJamWidth`), the real key grid is swapped for **`JamKeyPlaceholderGrid`** (cheap
-  translucent boxes) to keep resizing smooth. Placeholder boxes and real keys share the `jamKeyMinHeight`
+- While dragging (`isDraggingJamWidth`, derived from `draggingPadding != nil`), the real key grid is swapped
+  for **`JamKeyPlaceholderGrid`** (cheap translucent `Color.primary` boxes — must stay visible in both light
+  and dark mode) to keep resizing smooth. Placeholder boxes and real keys share the `jamKeyMinHeight`
   (= 80) constant and matching corner radius / spacing so the placeholder matches the final shape.
+- The drag gesture measures translation in `.global` coordinate space (the handles move with the grid edge,
+  so `.local` would feed back into itself and oscillate), holds the in-flight value in `@State draggingPadding`,
+  and writes `@AppStorage jamHorizontalPadding` once on drag end. `EasyMusicUITests/JamResizeDriverTests.swift`
+  covers this flow end-to-end.
 
 Shared layout constants live at file scope (`jamKeyMinHeight`) or as `JamView` computed props
 (`jamGridHeight`). Key visual constants: key `cornerRadius` 16, row/column spacing 16.
